@@ -1,8 +1,16 @@
-import { stats, flagDefinitions } from "@/lib/fcra";
+import {
+  REAL_ROW_COUNT,
+  realFys,
+  donorFys,
+  cancellationTotal,
+  cancellationsSorted,
+} from "@/lib/real";
 
 export default function DataPage() {
-  const s = stats();
-  const defs = flagDefinitions();
+  const fys = realFys();
+  const donorYears = donorFys();
+  const canc = cancellationsSorted();
+
   return (
     <>
       <header className="masthead">
@@ -20,84 +28,59 @@ export default function DataPage() {
       <section>
         <div className="section-head">
           <span className="section-num">01</span>
-          <h2>Sample Filings</h2>
-          <span className="stamp red">Sample · n={s.rows}</span>
+          <h2>Real Aggregates</h2>
+          <span className="stamp red">
+            Real · n={REAL_ROW_COUNT.toLocaleString("en-IN")}
+          </span>
         </div>
         <div className="cards">
           <div className="card">
-            <h3>sample_fcra.json</h3>
+            <h3>fcra_state_year.json — 464 rows</h3>
             <p className="mono">
-              24 illustrative filing rows · fields: id, ngo_name, fcra_reg_no
-              (masked), donor_name, donor_country, amount_inr, fy, purpose,
-              source_url, filing_date. NIL filings are included as amount 0.
+              State/UT × financial-year × metric (received / utilised /
+              active_ngos). FY 2009-10–2024-25; state-level gaps declared for
+              2014-15–2015-16 and 2022-23–2023-24; FY 2019-20 partial. Every row
+              carries source_document, source_url, table_ref.
             </p>
           </div>
           <div className="card">
-            <h3>flags.json</h3>
+            <h3>fcra_mha_ar_state_year.json — 9 rows</h3>
             <p className="mono">
-              {defs.length} mechanical flag definitions · each with an exact
-              rule and formula: {defs.map((d) => d.id).join(", ")}.
+              All-India national totals from MHA annual reports (FY 2010-11–
+              2017-18), the only public source for national anchors in FY
+              2012-13–2013-14. Revised pairs kept as separate per-source rows,
+              never merged.
             </p>
           </div>
           <div className="card">
-            <h3>Provenance</h3>
+            <h3>fcra_donor_country.json — 499 rows</h3>
             <p className="mono">
-              Schema mirrors Form FC-4 fields as published on
-              fcraonline.nic.in. Sample values are illustrative; registration
-              numbers are masked (12XXX1234X pattern).
+              Donor-country × financial-year totals (rupees). FY{" "}
+              {donorYears.slice(0, -1).join(", ")} full country lists from RS SQ
+              304; FY {donorYears[donorYears.length - 1]} top 5 from the MHA
+              briefing. Excludes donations below Rs. 20,000 per Form FC-4.
+            </p>
+          </div>
+          <div className="card">
+            <h3>fcra_cancellations.json — 32 rows</h3>
+            <p className="mono">
+              State-wise FCRA registrations cancelled, 2020 to 22.03.2023 —
+              total {cancellationTotal().toLocaleString("en-IN")}. Highest:{" "}
+              {canc[0].state} ({canc[0].cancelled_count.toLocaleString("en-IN")}).
+              Source: RS USQ 3253, Annexure-III.
             </p>
           </div>
         </div>
-      </section>
-
-      <section>
-        <div className="section-head">
-          <span className="section-num">02</span>
-          <h2>Download</h2>
-        </div>
-        <div className="prose">
+        <div className="prose" style={{ marginTop: 16 }}>
           <p>
-            The sample CSV mirrors the JSON fields exactly, so any bulk
-            ingestion can reuse this schema unchanged.
-          </p>
-          <p>
-            <a
-              href={
-                "data:text/csv;charset=utf-8," +
-                encodeURIComponent(
-                  "id,ngo_name,fcra_reg_no,donor_name,donor_country,amount_inr,fy,purpose,source_url,filing_date\n" +
-                    [
-                      "F001,Helping Hands Foundation,04XXX1278X,Open Horizon Fund,United States,5000000,2021-22,Educational,https://fcraonline.nic.in/,2022-09-15",
-                      "F009,Helping Hands Foundation,04XXX1278X,Open Horizon Fund,United States,18000000,2022-23,Educational,https://fcraonline.nic.in/,2023-09-12",
-                      "F015,New Dawn Welfare Association,03XXX7712X,Liberty Grant Corp,United States,6000000,2022-23,Social,https://fcraonline.nic.in/,2023-10-30",
-                      "F021,Global Health Initiative India,12XXX8893X,MedCare Global,United States,20000000,2023-24,Medical,https://fcraonline.nic.in/,2024-08-22",
-                    ].join("\n")
-                )
-              }
-              download="fcra_flow_sample.csv"
-            >
-              ⬇ Download 4-row sample CSV
-            </a>{" "}
-            <span className="stamp" style={{ marginLeft: 8 }}>Sample</span>
-          </p>
-          <p className="mono" style={{ fontSize: 13, color: "#5c5c5c" }}>
-            Full 24-row sample lives at data/sample_fcra.json in the repository.
-          </p>
-        </div>
-      </section>
-
-      <section>
-        <div className="section-head">
-          <span className="section-num">03</span>
-          <h2>Roadmap</h2>
-        </div>
-        <div className="prose">
-          <p>
-            1. Bulk ingestion of Form FC-4 filings from the MHA dashboard
-            (public pages only; no access-control bypass). 2. Entity resolution
-            for donor/NGO name variants. 3. Static-shard publishing via
-            jsDelivr, matching the SIR-WATCH $0 architecture. 4. Year-over-year
-            donor graph: donor → NGO network view.
+            Documents: Lok Sabha / Rajya Sabha questions answered by MHA
+            ministers, MHA annual reports, a PIB backgrounder, and an MHA
+            briefing via BusinessLine.
+            Full provenance — what was attempted, what failed, per-row document
+            links, and the coverage-gap audit — is in{" "}
+            <span className="mono">docs/DATA_SOURCES.md</span> in the repository.
+            The name-level Form FC-4 ledger on the homepage is a 24-row
+            illustrative sample (<span className="mono">data/sample/</span>).
           </p>
         </div>
       </section>

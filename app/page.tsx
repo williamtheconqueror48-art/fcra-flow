@@ -1,5 +1,16 @@
 import { stats, inr, distinctFys } from "@/lib/fcra";
+import {
+  donorTopN,
+  donorFys,
+  cancellationTotal,
+  cancellationDoc,
+  inrCr,
+  shortDoc,
+  nationalSeries,
+  REAL_ROW_COUNT,
+} from "@/lib/real";
 import HomeClient from "./home-client";
+import RecordTable from "./real-client";
 
 function Nav() {
   return (
@@ -13,6 +24,12 @@ function Nav() {
 
 export default function Home() {
   const s = stats();
+  const donorYears = donorFys();
+  const latestDonorFy = donorYears[donorYears.length - 1];
+  const donors = donorTopN(latestDonorFy, 5);
+  const cancTotal = cancellationTotal();
+  const cancSrc = cancellationDoc();
+
   return (
     <>
       <header className="masthead">
@@ -24,67 +41,109 @@ export default function Home() {
           FCRA <span className="flow">FLOW</span>
         </h1>
         <p className="tagline">
-          A mechanical, human-curated ledger of foreign contributions disclosed by
-          Indian NGOs under the Foreign Contribution (Regulation) Act — Form FC-4
-          filings as published on{" "}
-          <a href="https://fcraonline.nic.in/">fcraonline.nic.in</a>. Every number
+          Foreign contributions received by Indian NGOs under the Foreign
+          Contribution (Regulation) Act — state-level and donor-country
+          aggregates answered in Parliament and released by MHA. Every number
           cites its source. No AI-generated content.
         </p>
       </header>
 
       <Nav />
 
-      <div className="banner">
-        <strong>Sample dataset</strong> — 24 illustrative rows only. Bulk FCRA
-        ingestion from the MHA dashboard is pending. Nothing on this page is a
-        finding of wrongdoing. Flags are mechanical correlations; the rule for
-        each flag is shown next to it.
+      <section>
+        <div className="section-head">
+          <span className="section-num">01</span>
+          <h2>The Record</h2>
+          <span className="stamp red">Real · {REAL_ROW_COUNT.toLocaleString("en-IN")} rows</span>
+        </div>
+        <RecordTable />
+        <h3 className="mono" style={{ marginTop: 24, fontSize: 15 }}>
+          NATIONAL TOTALS — ALL INDIA, PER SOURCE
+        </h3>
+        <p className="mono" style={{ fontSize: 13, color: "#5c5c5c" }}>
+          Every all-India figure ever published, kept as separate per-source
+          rows. Revised pairs (e.g. FY 2011-12, 2012-13) show the earlier and
+          the revised figure side by side — the documents disagree, so we do
+          not pick one.
+        </p>
+        <div className="table-wrap">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>FY</th>
+                <th>Received</th>
+                <th>Reporting NGOs</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nationalSeries().map((r, i) => (
+                <tr key={i}>
+                  <td className="mono">{r.fy}</td>
+                  <td className="amt">
+                    {r.qualifier ? r.qualifier + " " : ""}
+                    {inrCr(r.amount)}
+                  </td>
+                  <td className="mono">
+                    {r.reporting !== null
+                      ? r.reporting.toLocaleString("en-IN")
+                      : "—"}
+                  </td>
+                  <td>
+                    <a href={r.url} target="_blank" rel="noreferrer">
+                      {r.label} ↗
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <div className="stats-strip">
+          {donors.rows.map((r) => (
+            <div className="stat" key={r.donor_country}>
+              <div className="num" style={{ fontSize: 20 }}>
+                {inrCr(r.amount)}
+              </div>
+              <div className="lbl">
+                {r.donor_country} · FY {r.financial_year}
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mono" style={{ fontSize: 13, color: "#5c5c5c", marginTop: 8 }}>
+          Top {donors.rows.length} donor countries, FY {latestDonorFy} — source:{" "}
+          <a href={donors.url} target="_blank" rel="noreferrer">
+            {shortDoc(donors.doc)} ↗
+          </a>
+          . · {cancTotal.toLocaleString("en-IN")} FCRA registrations cancelled,{" "}
+          {cancSrc.period} — source:{" "}
+          <a href={cancSrc.url} target="_blank" rel="noreferrer">
+            {shortDoc(cancSrc.doc)} ↗
+          </a>
+          .
+        </p>
+      </section>
+
+      <div className="banner" style={{ marginTop: 8 }}>
+        <strong>Sample dataset below</strong> — 24 illustrative Form FC-4
+        name-level rows for the flag demo. Not MHA records.
       </div>
 
       <section>
         <div className="section-head">
-          <span className="section-num">01</span>
-          <h2>The Ledger</h2>
-          <span className="stamp red">Form FC-4</span>
-        </div>
-        <HomeClient fys={distinctFys()} />
-      </section>
-
-      <section>
-        <div className="section-head">
           <span className="section-num">02</span>
-          <h2>Sample Statistics</h2>
+          <h2>The Ledger (Sample)</h2>
           <span className="stamp red">Sample · n=24</span>
         </div>
-        <div className="stats-strip">
-          <div className="stat">
-            <div className="num">{s.rows}</div>
-            <div className="lbl">Filing rows (sample)</div>
-          </div>
-          <div className="stat">
-            <div className="num">{s.ngos}</div>
-            <div className="lbl">NGOs (sample)</div>
-          </div>
-          <div className="stat">
-            <div className="num">{s.donors}</div>
-            <div className="lbl">Foreign donors (sample)</div>
-          </div>
-          <div className="stat">
-            <div className="num">{inr(s.total_inr)}</div>
-            <div className="lbl">Total inflow (sample)</div>
-          </div>
-          <div className="stat">
-            <div className="num">{s.fys}</div>
-            <div className="lbl">Financial years (sample)</div>
-          </div>
-          <div className="stat">
-            <div className="num">{s.flag_hits}</div>
-            <div className="lbl">Mechanical flag hits (sample)</div>
-          </div>
-        </div>
+        <HomeClient fys={distinctFys()} />
         <p className="mono" style={{ marginTop: 12, fontSize: 13, color: "#5c5c5c" }}>
-          All figures computed mechanically from the 24-row sample dataset. Bulk
-          numbers will replace these once MHA ingestion ships.
+          Sample stats: {s.rows} rows · {s.ngos} NGOs · {s.donors} donors ·{" "}
+          {inr(s.total_inr)} total inflow · {s.flag_hits} flag hits. Computed
+          mechanically from the sample dataset.
         </p>
       </section>
 
@@ -93,15 +152,6 @@ export default function Home() {
           <span className="section-num">03</span>
           <h2>Flag Rules — Read Before You Share</h2>
           <span className="stamp red">Mechanical only</span>
-        </div>
-        <div className="prose">
-          <p>
-            FCRA FLOW never alleges wrongdoing. Each flag below is a pure
-            arithmetic test over published Form FC-4 filings. The formula is
-            printed next to every flag, and the full methodology — including what
-            is <em>not</em> claimed — is on the{" "}
-            <a href="/methodology">methodology page</a>.
-          </p>
         </div>
         <div className="formula-box">
           <span className="fname">SPIKE — Inflow Spike</span>
@@ -118,6 +168,13 @@ export default function Home() {
           <span className="formula">FY_previous_total = 0 AND FY_total &gt;= 50,00,000</span>
           NIL filing in the previous FY, then at least Rs. 50 lakh this FY.
         </div>
+        <div className="prose">
+          <p>
+            FCRA FLOW never alleges wrongdoing. A flag is a question, not an
+            accusation. Full methodology — including what is <em>not</em>{" "}
+            claimed — is on the <a href="/methodology">methodology page</a>.
+          </p>
+        </div>
       </section>
 
       <footer>
@@ -126,11 +183,12 @@ export default function Home() {
           <span className="stamp">No AI-generated content — human-curated disclosure</span>
         </div>
         <p className="fine">
-          Source: Ministry of Home Affairs FCRA dashboard (fcraonline.nic.in),
-          Form FC-4 annual returns. Sample data on this scaffold is illustrative;
-          registration numbers are masked. Bulk ingestion is future work — no
-          CAPTCHAs, access controls, logins, or paywalls are bypassed.
-          Correlation is not causation; a flag is a question, not an accusation.
+          Sources: Lok Sabha / Rajya Sabha questions (MHA ministers), MHA
+          annual reports, PIB backgrounder, MHA briefing via BusinessLine —
+          every real row carries its source document. Name-level sample rows
+          are illustrative; registration numbers are masked. No CAPTCHAs,
+          access controls, logins, or paywalls were bypassed. Correlation is
+          not causation.
         </p>
         <p className="fine">MIT License. Built as a public-interest OSINT tool.</p>
       </footer>
